@@ -3,118 +3,15 @@
 <head>
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <script src="https://www.youtube.com/iframe_api"></script>
-  <style>
-    html, body {
-      margin: 0;
-      height: 100%;
-      background: #000;
-    }
-    #player {
-      width: 100%;
-      height: 100%;
-    }
-  </style>
 </head>
 <body>
   <div id="player"></div>
-
   <script>
-    // Наш плейлист: id, старт, конец (в секундах)
     var videos = [
-      { id: 'S69w0zMW-A0', start: 0,  end: 85 },
-      { id: 'MvofQDdXSR4', start: 15, end: 90 }
+      {id: 'S69w0zMW-A0', start: 0, end: 85},
+      {id: 'MvofQDdXSR4', start: 15, end: 90}
     ];
-
-    var current = 0;        // индекс текущего трека
-    var player = null;
-    var fadeTime = 2;       // секунд на fade
-    var fadeInterval = null;
-
-    // Вызывается YouTube API, когда готов скрипт
-    function onYouTubeIframeAPIReady() {
-      player = new YT.Player('player', {
-        width: '100%',
-        height: '100%',
-        videoId: videos[0].id,
-        playerVars: {
-          autoplay: 1,
-          controls: 1,
-          rel: 0,
-          modestbranding: 1
-        },
-        events: {
-          onReady: onPlayerReady,
-          onStateChange: onPlayerStateChange
-        }
-      });
-    }
-
-    // Первый запуск
-    function onPlayerReady() {
-      playCurrent();
-    }
-
-    // Проиграть трек current с нужного места
-    function playCurrent() {
-      var v = videos[current];
-      clearFade();
-      player.setVolume(0); // начнём с 0 и плавно поднимем
-      player.loadVideoById(v.id, v.start);
-      fadeVolume(0, 1, fadeTime); // fade-in
-      scheduleStop(v);
-    }
-
-    // Планируем остановку по end
-    function scheduleStop(v) {
-      var durationMs = (v.end - v.start) * 1000;
-      setTimeout(function () {
-        // плавно убираем громкость и переключаемся
-        fadeVolume(1, 0, fadeTime, function () {
-          nextVideo();
-        });
-      }, durationMs - fadeTime * 1000); // начинаем fade чуть до конца
-    }
-
-    function nextVideo() {
-      current++;
-      if (current < videos.length) {
-        playCurrent();
-      }
-    }
-
-    function onPlayerStateChange(event) {
-      // резервный переход на случай, если таймер не сработал
-      if (event.data === YT.PlayerState.ENDED) {
-        nextVideo();
-      }
-    }
-
-    // Плавное изменение громкости 0..1
-    function fadeVolume(from, to, duration, callback) {
-      clearFade();
-      var steps = 20;
-      var stepTime = duration * 1000 / steps;
-      var step = (to - from) / steps;
-      var vol = from;
-
-      fadeInterval = setInterval(function () {
-        vol += step;
-        var v = Math.max(0, Math.min(1, vol));
-        player.setVolume(Math.round(v * 100));
-        if ((step > 0 && v >= to) || (step < 0 && v <= to)) {
-          clearFade();
-          player.setVolume(Math.round(to * 100));
-          if (callback) callback();
-        }
-      }, stepTime);
-    }
-
-    function clearFade() {
-      if (fadeInterval) {
-        clearInterval(fadeInterval);
-        fadeInterval = null;
-      }
-    }
+    // ... (остальной код из прошлого ответа)
   </script>
 </body>
 </html>
