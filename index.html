@@ -4,67 +4,55 @@
   <meta name="referrer" content="strict-origin-when-cross-origin">
   <style>
     body { margin: 0; background: #000; font-family: Arial; }
-    #player { width: 100%; height: 100vh; border: none; }
-    .info { position: fixed; top: 20px; left: 20px; background: rgba(0,0,0,0.9); color: #fff; padding: 15px; border-radius: 8px; font-size: 14px; z-index: 100; }
-    .time { color: #0f0; font-weight: bold; }
+    .container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+    iframe { width: 100%; height: 100%; border: none; }
+    .controls { position: absolute; bottom: 20px; left: 20px; background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; color: white; }
+    button { background: #1f1f1f; color: #fff; border: 1px solid #666; padding: 10px 20px; margin: 5px; cursor: pointer; border-radius: 5px; font-size: 14px; }
+    button:hover { background: #333; }
+    .track-info { color: #aaa; margin-bottom: 10px; }
   </style>
 </head>
 <body>
   <div id="player-container">
-    <iframe id="player" src="" width="100%" height="100%" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    <iframe id="player" src="https://www.youtube-nocookie.com/embed/S69w0zMW-A0?start=0&end=85&autoplay=1&controls=1&rel=0&modestbranding=1" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
   </div>
   
-  <div class="info">
-    <div>🎵 Трек: <strong id="track-name">Загрузка...</strong></div>
-    <div>⏱️ Осталось: <span class="time" id="countdown">--:--</span></div>
+  <div class="controls">
+    <div class="track-info">Текущий трек: <strong id="track-name">Titanium Remix (0:00-1:25)</strong></div>
+    <button onclick="nextTrack()">➡️ Следующий трек</button>
+    <button onclick="prevTrack()">⬅️ Предыдущий</button>
+    <button onclick="playTrack(0)">Трек 1</button>
+    <button onclick="playTrack(1)">Трек 2</button>
   </div>
 
   <script>
     var tracks = [
-      { id: 'S69w0zMW-A0', start: 0, duration: 85, name: 'Titanium Remix' },
-      { id: 'MvofQDdXSR4', start: 15, duration: 75, name: 'EDM Mix' }
+      { id: 'S69w0zMW-A0', start: 0, end: 85, name: 'Titanium Remix (0:00-1:25)' },
+      { id: 'MvofQDdXSR4', start: 15, end: 90, name: 'EDM Mix (0:15-1:30)' }
     ];
     
     var current = 0;
-    var endTime;
-    var countdownInterval;
 
-    function loadTrack(idx) {
-      clearInterval(countdownInterval);
-      current = idx;
-      
-      var track = tracks[idx];
-      var url = `https://www.youtube-nocookie.com/embed/${track.id}?start=${track.start}&autoplay=1&controls=0&rel=0&modestbranding=1`;
-      
-      document.getElementById('player').src = url;
-      document.getElementById('track-name').innerText = track.name;
-      
-      // Таймер для автоматического переключения
-      endTime = Date.now() + track.duration * 1000;
-      startCountdown();
+    function playTrack(idx) {
+      if (idx >= 0 && idx < tracks.length) {
+        current = idx;
+        var url = `https://www.youtube-nocookie.com/embed/${tracks[idx].id}?start=${tracks[idx].start}&end=${tracks[idx].end}&autoplay=1&controls=1&rel=0&modestbranding=1`;
+        document.getElementById('player').src = url;
+        document.getElementById('track-name').innerText = tracks[idx].name;
+      }
     }
 
-    function startCountdown() {
-      countdownInterval = setInterval(function() {
-        var remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
-        var mins = Math.floor(remaining / 60);
-        var secs = remaining % 60;
-        document.getElementById('countdown').innerText = mins + ':' + (secs < 10 ? '0' : '') + secs;
-        
-        if (remaining <= 0) {
-          clearInterval(countdownInterval);
-          if (current < tracks.length - 1) {
-            // Небольшая задержка перед загрузкой следующего
-            setTimeout(function() {
-              loadTrack(current + 1);
-            }, 500);
-          }
-        }
-      }, 100);
+    function nextTrack() {
+      if (current < tracks.length - 1) {
+        playTrack(current + 1);
+      }
     }
 
-    // Запуск первого трека при загрузке
-    loadTrack(0);
+    function prevTrack() {
+      if (current > 0) {
+        playTrack(current - 1);
+      }
+    }
   </script>
 </body>
 </html>
