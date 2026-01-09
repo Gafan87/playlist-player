@@ -112,7 +112,7 @@
     function playTrack(idx) {
       if (idx >= 0 && idx < tracks.length) {
         current = idx;
-        var url = `https://www.youtube-nocookie.com/embed/${tracks[idx].id}?start=${tracks[idx].start}&autoplay=1&controls=1&rel=0&modestbranding=1`;
+        var url = `https://www.youtube.com/embed/${tracks[idx].id}?start=${tracks[idx].start}&autoplay=1&controls=1&rel=0&modestbranding=1`;
         document.getElementById('player').src = url;
         document.getElementById('track-name').innerText = tracks[idx].name;
         
