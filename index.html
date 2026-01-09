@@ -2,100 +2,25 @@
 <html>
 <head>
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #000; font-family: Arial, sans-serif; touch-action: manipulation; }
-    
-    #player-container { width: 100%; height: 100vh; position: relative; }
-    iframe { width: 100%; height: 100%; border: none; display: block; }
-    
-    .controls { 
-      position: fixed; 
-      bottom: 0; 
-      left: 0; 
-      right: 0;
-      background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
-      padding: 60px 15px 20px; 
-      text-align: center; 
-      z-index: 100;
-    }
-    
-    .track-info { 
-      color: #0f0; 
-      margin-bottom: 10px; 
-      font-size: 14px;
-      font-weight: bold;
-    }
-    
-    .progress-bar {
-      width: 100%;
-      max-width: 300px;
-      height: 6px;
-      background: #333;
-      border-radius: 3px;
-      margin: 10px auto;
-      position: relative;
-    }
-    
-    .progress-bar .progress {
-      height: 100%;
-      background: #0f0;
-      border-radius: 3px;
-      width: 0%;
-    }
-    
-    button { 
-      background: #1f1f1f; 
-      color: #fff; 
-      border: 1px solid #666; 
-      padding: 10px 15px; 
-      margin: 5px; 
-      cursor: pointer; 
-      border-radius: 5px; 
-      font-size: 13px;
-      font-weight: bold;
-      touch-action: manipulation;
-    }
-    
-    button:active { 
-      background: #0f0;
-      color: #000;
-      border-color: #0f0;
-    }
-    
-    button.active {
-      background: #0f0;
-      color: #000;
-      border-color: #0f0;
-    }
-
-    @media (max-width: 600px) {
-      .controls { padding: 50px 10px 15px; }
-      button { padding: 8px 12px; font-size: 12px; margin: 3px; }
-    }
+    body { margin: 0; background: #000; }
+    .player-wrapper { position: relative; width: 100%; height: 100vh; }
+    iframe { width: 100%; height: 100%; border: none; }
+    .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); pointer-events: none; z-index: 10; }
+    .info { position: fixed; top: 20px; left: 20px; background: rgba(0,0,0,0.95); color: #fff; padding: 15px 20px; border-radius: 8px; font-size: 14px; z-index: 100; font-family: Arial; }
+    .time { color: #0f0; font-weight: bold; font-size: 18px; }
+    .loading { color: #f90; }
   </style>
 </head>
 <body>
-  <div id="player-container">
-    <iframe id="player" src="" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  <div class="player-wrapper">
+    <iframe id="player" width="100%" height="100%" src="" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
   </div>
+  <div class="overlay"></div>
   
-  <div class="controls" id="controls">
-    <div class="track-info">🎵 <span id="track-name">Загрузка...</span></div>
-    <div class="progress-bar">
-      <div class="progress" id="progress"></div>
-    </div>
-    <div style="font-size: 12px; color: #999; margin-bottom: 10px;">
-      ⏱️ <span id="time-display">00:00 / 00:00</span>
-    </div>
-    <div>
-      <button onclick="prevTrack()">⏮️</button>
-      <button onclick="playTrack(0)">1️⃣</button>
-      <button onclick="playTrack(1)">2️⃣</button>
-      <button id="auto-btn" onclick="toggleAuto()">▶️</button>
-      <button onclick="nextTrack()">⏭️</button>
-    </div>
+  <div class="info">
+    <div>🎵 Трек: <strong id="track-name">Загрузка...</strong></div>
+    <div>⏱️ Осталось: <span class="time" id="countdown">00:00</span></div>
   </div>
 
   <script>
@@ -105,92 +30,52 @@
     ];
     
     var current = 0;
-    var autoMode = false;
-    var autoTimeout;
-    var updateInterval;
+    var endTime;
+    var countdownInterval;
 
-    function playTrack(idx) {
-      if (idx >= 0 && idx < tracks.length) {
-        current = idx;
-        var url = `https://www.youtube-nocookie.com/embed/${tracks[idx].id}?start=${tracks[idx].start}&autoplay=1&controls=1&rel=0&modestbranding=1`;
-        document.getElementById('player').src = url;
-        document.getElementById('track-name').innerText = tracks[idx].name;
-        
-        clearInterval(updateInterval);
-        startProgressMonitor();
-        
-        clearTimeout(autoTimeout);
-        if (autoMode) {
-          autoTimeout = setTimeout(function() {
-            nextTrack();
-          }, tracks[idx].duration * 1000 + 1000);
-        }
-      }
-    }
-
-    function nextTrack() {
-      if (current < tracks.length - 1) {
-        playTrack(current + 1);
-      } else {
-        document.getElementById('track-name').innerText = '✅ Плейлист завершён!';
-      }
-    }
-
-    function prevTrack() {
-      if (current > 0) {
-        playTrack(current - 1);
-      }
-    }
-
-    function toggleAuto() {
-      autoMode = !autoMode;
-      var btn = document.getElementById('auto-btn');
-      btn.classList.toggle('active');
+    function loadTrack(idx) {
+      clearInterval(countdownInterval);
       
-      if (autoMode) {
-        btn.innerText = '⏸️';
-        clearTimeout(autoTimeout);
-        autoTimeout = setTimeout(function() {
-          nextTrack();
-        }, tracks[current].duration * 1000 + 1000);
-      } else {
-        btn.innerText = '▶️';
-        clearTimeout(autoTimeout);
+      if (idx >= tracks.length) {
+        document.getElementById('track-name').innerText = '✅ Плейлист завершён!';
+        document.getElementById('countdown').innerText = '--:--';
+        return;
       }
+      
+      current = idx;
+      var track = tracks[idx];
+      
+      // Используем стандартный embed (не nocookie) для надёжности
+      var url = `https://www.youtube.com/embed/${track.id}?start=${track.start}&autoplay=1&controls=1&rel=0&modestbranding=1`;
+      
+      document.getElementById('player').src = url;
+      document.getElementById('track-name').innerText = track.name;
+      
+      // Таймер
+      endTime = Date.now() + (track.duration * 1000);
+      startCountdown();
     }
 
-    function startProgressMonitor() {
-      // Обновляем каждые 0.2 сек
-      updateInterval = setInterval(function() {
-        // Используем простой расчёт времени
-        // (YouTube API в iframe недоступна, поэтому используем приблизительный расчет)
+    function startCountdown() {
+      countdownInterval = setInterval(function() {
+        var remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+        var mins = Math.floor(remaining / 60);
+        var secs = remaining % 60;
+        document.getElementById('countdown').innerText = 
+          (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
         
-        var elapsed = (Date.now() - window.playStartTime) / 1000;
-        var percent = Math.min(100, (elapsed / tracks[current].duration) * 100);
-        
-        document.getElementById('progress').style.width = percent + '%';
-        
-        var mins = Math.floor(elapsed / 60);
-        var secs = Math.floor(elapsed % 60);
-        var totalMins = Math.floor(tracks[current].duration / 60);
-        var totalSecs = Math.floor(tracks[current].duration % 60);
-        
-        document.getElementById('time-display').innerText = 
-          (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs + 
-          ' / ' + 
-          (totalMins < 10 ? '0' : '') + totalMins + ':' + (totalSecs < 10 ? '0' : '') + totalSecs;
-        
-        // Завершение трека (с буфером 1 сек)
-        if (elapsed > tracks[current].duration + 1) {
-          clearInterval(updateInterval);
+        if (remaining <= 1) {
+          clearInterval(countdownInterval);
+          // Переключение с задержкой для стабильности
+          setTimeout(function() {
+            loadTrack(current + 1);
+          }, 800);
         }
-      }, 200);
+      }, 500);
     }
 
-    window.playStartTime = Date.now();
-    
     // Запуск
-    playTrack(0);
+    loadTrack(0);
   </script>
 </body>
 </html>
