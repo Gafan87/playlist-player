@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <script src="https://www.youtube.com/iframe_api"></script>
+</head>
+<body>
+  <div id="player"></div>
+  <script>
+    var videos = [
+      {id: 'S69w0zMW-A0', start: 0, end: 85},
+      {id: 'MvofQDdXSR4', start: 15, end: 90}
+    ];
+    var current = 0;
+    var player;
+    var fadeTime = 2;
+
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('player', {
+        height: '390',
+        width: '640',
+        videoId: videos[0].id,
+        playerVars: { 
+          start: videos[0].start, 
+          end: videos[0].end, 
+          autoplay: 1,
+          rel: 0,
+          modestbranding: 1
+        },
+        events: { 
+          onReady: onPlayerReady,
+          onStateChange: onStateChange 
+        }
+      });
+    }
+
+    function onPlayerReady(event) {
+      fadeVolume(0, 1, fadeTime);
+    }
+
+    function onStateChange(event) {
+      if (event.data == YT.PlayerState.ENDED || player.getCurrentTime() >= videos[current].end) {
+        fadeVolume(1, 0, fadeTime / 2, function() {
+          current++;
+          if (current < videos.length) {
+            player.loadVideoById(videos[current]);
+            player.seekTo(videos[current].start, true);
+            player.setPlaybackRate(1);
+            setTimeout(function() {
+              fadeVolume(0, 1, fadeTime);
+            }, 500);
+          }
+        });
+      }
+    }
+
+    function fadeVolume(fromVol, toVol, duration, callback) {
+      var steps = 20;
+      var stepTime = duration * 1000 / steps;
+      var step = (toVol - fromVol) / steps;
+      var vol = fromVol;
+      var interval = setInterval(function () {
+        vol += step;
+        player.setVolume(Math.max(0, Math.min(100, vol * 100)));
+        if (Math.abs(vol - toVol) < Math.abs(step)) {
+          clearInterval(interval);
+          if (callback) callback();
+        }
+      }, stepTime);
+    }
+  </script>
+</body>
+</html>
