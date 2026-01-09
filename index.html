@@ -2,73 +2,69 @@
 <html>
 <head>
   <meta name="referrer" content="strict-origin-when-cross-origin">
-  <script src="https://www.youtube.com/iframe_api"></script>
-  <style>body{margin:0;height:100vh;}#player{width:100%;height:100%;}</style>
+  <style>
+    body { margin: 0; background: #000; font-family: Arial; }
+    #player { width: 100%; height: 100vh; border: none; }
+    .info { position: fixed; top: 20px; left: 20px; background: rgba(0,0,0,0.9); color: #fff; padding: 15px; border-radius: 8px; font-size: 14px; z-index: 100; }
+    .time { color: #0f0; font-weight: bold; }
+  </style>
 </head>
 <body>
-  <div id="player"></div>
+  <div id="player-container">
+    <iframe id="player" src="" width="100%" height="100%" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+  </div>
+  
+  <div class="info">
+    <div>🎵 Трек: <strong id="track-name">Загрузка...</strong></div>
+    <div>⏱️ Осталось: <span class="time" id="countdown">--:--</span></div>
+  </div>
+
   <script>
-    var videos = [
-      {id: 'S69w0zMW-A0', start: 0, duration: 85},
-      {id: 'MvofQDdXSR4', start: 15, duration: 75}
+    var tracks = [
+      { id: 'S69w0zMW-A0', start: 0, duration: 85, name: 'Titanium Remix' },
+      { id: 'MvofQDdXSR4', start: 15, duration: 75, name: 'EDM Mix' }
     ];
+    
     var current = 0;
-    var player;
-    var fadeTime = 2;
-    var startTime;
+    var endTime;
+    var countdownInterval;
 
-    function onYouTubeIframeAPIReady() {
-      player = new YT.Player('player', {
-        width: '100%',
-        height: '100%',
-        videoId: videos[0].id,
-        playerVars: { autoplay: 1, rel: 0, modestbranding: 1 },
-        events: { onReady: onPlayerReady, onStateChange: onStateChange }
-      });
+    function loadTrack(idx) {
+      clearInterval(countdownInterval);
+      current = idx;
+      
+      var track = tracks[idx];
+      var url = `https://www.youtube-nocookie.com/embed/${track.id}?start=${track.start}&autoplay=1&controls=0&rel=0&modestbranding=1`;
+      
+      document.getElementById('player').src = url;
+      document.getElementById('track-name').innerText = track.name;
+      
+      // Таймер для автоматического переключения
+      endTime = Date.now() + track.duration * 1000;
+      startCountdown();
     }
 
-    function onPlayerReady(event) {
-      loadVideo(current);
-      fadeVolume(0, 1, fadeTime);
-    }
-
-    function loadVideo(idx) {
-      startTime = Date.now();
-      player.loadVideoById(videos[idx].id);
-      player.seekTo(videos[idx].start, true);
-    }
-
-    function onStateChange(event) {
-      if (event.data == YT.PlayerState.PLAYING) {
-        player.seekTo(videos[current].start, true);  // Гарантируем start
-      }
-      if (event.data == YT.PlayerState.ENDED || (Date.now() - startTime > videos[current].duration * 1000)) {
-        fadeVolume(1, 0, fadeTime / 2, function() {
-          current++;
-          if (current < videos.length) {
+    function startCountdown() {
+      countdownInterval = setInterval(function() {
+        var remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+        var mins = Math.floor(remaining / 60);
+        var secs = remaining % 60;
+        document.getElementById('countdown').innerText = mins + ':' + (secs < 10 ? '0' : '') + secs;
+        
+        if (remaining <= 0) {
+          clearInterval(countdownInterval);
+          if (current < tracks.length - 1) {
+            // Небольшая задержка перед загрузкой следующего
             setTimeout(function() {
-              loadVideo(current);
-              fadeVolume(0, 1, fadeTime);
-            }, 1000);
+              loadTrack(current + 1);
+            }, 500);
           }
-        });
-      }
+        }
+      }, 100);
     }
 
-    function fadeVolume(fromVol, toVol, duration, callback) {
-      var steps = 20;
-      var stepTime = duration * 1000 / steps;
-      var step = (toVol - fromVol) / steps;
-      var vol = fromVol;
-      var int = setInterval(function() {
-        vol += step;
-        player.setVolume(Math.round(Math.max(0, Math.min(100, vol * 100))));
-        if (Math.abs(vol - toVol) < Math.abs(step)) {
-          clearInterval(int);
-          if (callback) callback();
-        }
-      }, stepTime);
-    }
+    // Запуск первого трека при загрузке
+    loadTrack(0);
   </script>
 </body>
 </html>
