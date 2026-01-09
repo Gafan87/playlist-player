@@ -2,9 +2,10 @@
 <html>
 <head>
   <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #000; font-family: Arial, sans-serif; }
+    body { background: #000; font-family: Arial, sans-serif; touch-action: manipulation; }
     
     #player-container { width: 100%; height: 100vh; position: relative; }
     iframe { width: 100%; height: 100%; border: none; display: block; }
@@ -14,35 +15,52 @@
       bottom: 0; 
       left: 0; 
       right: 0;
-      background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
-      padding: 30px 20px 20px; 
+      background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
+      padding: 60px 15px 20px; 
       text-align: center; 
-      opacity: 0; 
-      transition: opacity 0.3s; 
       z-index: 100;
-      pointer-events: none;
     }
     
-    .controls.visible { 
-      opacity: 1; 
-      pointer-events: auto;
+    .track-info { 
+      color: #0f0; 
+      margin-bottom: 10px; 
+      font-size: 14px;
+      font-weight: bold;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      max-width: 300px;
+      height: 6px;
+      background: #333;
+      border-radius: 3px;
+      margin: 10px auto;
+      position: relative;
+    }
+    
+    .progress-bar .progress {
+      height: 100%;
+      background: #0f0;
+      border-radius: 3px;
+      width: 0%;
     }
     
     button { 
       background: #1f1f1f; 
       color: #fff; 
       border: 1px solid #666; 
-      padding: 12px 20px; 
+      padding: 10px 15px; 
       margin: 5px; 
       cursor: pointer; 
       border-radius: 5px; 
-      font-size: 14px;
+      font-size: 13px;
       font-weight: bold;
-      transition: 0.2s;
+      touch-action: manipulation;
     }
     
-    button:hover { 
-      background: #333; 
+    button:active { 
+      background: #0f0;
+      color: #000;
       border-color: #0f0;
     }
     
@@ -51,30 +69,10 @@
       color: #000;
       border-color: #0f0;
     }
-    
-    .track-info { 
-      color: #0f0; 
-      margin-bottom: 15px; 
-      font-size: 16px;
-      font-weight: bold;
-    }
-    
-    .progress-bar {
-      width: 100%;
-      max-width: 400px;
-      height: 4px;
-      background: #333;
-      border-radius: 2px;
-      margin: 15px auto;
-      position: relative;
-    }
-    
-    .progress-bar .progress {
-      height: 100%;
-      background: #0f0;
-      border-radius: 2px;
-      width: 0%;
-      transition: width 0.5s;
+
+    @media (max-width: 600px) {
+      .controls { padding: 50px 10px 15px; }
+      button { padding: 8px 12px; font-size: 12px; margin: 3px; }
     }
   </style>
 </head>
@@ -88,43 +86,44 @@
     <div class="progress-bar">
       <div class="progress" id="progress"></div>
     </div>
+    <div style="font-size: 12px; color: #999; margin-bottom: 10px;">
+      ⏱️ <span id="time-display">00:00 / 00:00</span>
+    </div>
     <div>
-      <button onclick="prevTrack()">⏮️ Пред.</button>
+      <button onclick="prevTrack()">⏮️</button>
       <button onclick="playTrack(0)">1️⃣</button>
       <button onclick="playTrack(1)">2️⃣</button>
-      <button id="auto-btn" onclick="toggleAuto()">▶️ Авто</button>
-      <button onclick="nextTrack()">След. ⏭️</button>
+      <button id="auto-btn" onclick="toggleAuto()">▶️</button>
+      <button onclick="nextTrack()">⏭️</button>
     </div>
   </div>
 
   <script>
     var tracks = [
-      { id: 'S69w0zMW-A0', start: 0, duration: 85, name: 'Titanium Remix (0:00-1:25)' },
-      { id: 'MvofQDdXSR4', start: 15, duration: 75, name: 'EDM Mix (0:15-1:30)' }
+      { id: 'S69w0zMW-A0', start: 0, duration: 85, name: 'Titanium Remix' },
+      { id: 'MvofQDdXSR4', start: 15, duration: 75, name: 'EDM Mix' }
     ];
     
     var current = 0;
     var autoMode = false;
     var autoTimeout;
-    var mouseTimeout;
-    var startTime;
+    var updateInterval;
 
     function playTrack(idx) {
       if (idx >= 0 && idx < tracks.length) {
         current = idx;
-        var url = `https://www.youtube.com/embed/${tracks[idx].id}?start=${tracks[idx].start}&autoplay=1&controls=1&rel=0&modestbranding=1`;
+        var url = `https://www.youtube-nocookie.com/embed/${tracks[idx].id}?start=${tracks[idx].start}&autoplay=1&controls=1&rel=0&modestbranding=1`;
         document.getElementById('player').src = url;
         document.getElementById('track-name').innerText = tracks[idx].name;
         
-        startTime = Date.now();
-        updateProgress();
+        clearInterval(updateInterval);
+        startProgressMonitor();
         
-        // Авто-переключение
         clearTimeout(autoTimeout);
         if (autoMode) {
           autoTimeout = setTimeout(function() {
             nextTrack();
-          }, tracks[idx].duration * 1000 + 800);
+          }, tracks[idx].duration * 1000 + 1000);
         }
       }
     }
@@ -149,48 +148,47 @@
       btn.classList.toggle('active');
       
       if (autoMode) {
-        btn.innerText = '⏸️ Авто';
+        btn.innerText = '⏸️';
         clearTimeout(autoTimeout);
         autoTimeout = setTimeout(function() {
           nextTrack();
-        }, tracks[current].duration * 1000 + 800);
+        }, tracks[current].duration * 1000 + 1000);
       } else {
-        btn.innerText = '▶️ Авто';
+        btn.innerText = '▶️';
         clearTimeout(autoTimeout);
       }
     }
 
-    function updateProgress() {
-      if (!startTime) return;
-      
-      var elapsed = (Date.now() - startTime) / 1000;
-      var percent = Math.min(100, (elapsed / tracks[current].duration) * 100);
-      document.getElementById('progress').style.width = percent + '%';
-      
-      if (elapsed < tracks[current].duration + 2) {
-        setTimeout(updateProgress, 200);
-      }
+    function startProgressMonitor() {
+      // Обновляем каждые 0.2 сек
+      updateInterval = setInterval(function() {
+        // Используем простой расчёт времени
+        // (YouTube API в iframe недоступна, поэтому используем приблизительный расчет)
+        
+        var elapsed = (Date.now() - window.playStartTime) / 1000;
+        var percent = Math.min(100, (elapsed / tracks[current].duration) * 100);
+        
+        document.getElementById('progress').style.width = percent + '%';
+        
+        var mins = Math.floor(elapsed / 60);
+        var secs = Math.floor(elapsed % 60);
+        var totalMins = Math.floor(tracks[current].duration / 60);
+        var totalSecs = Math.floor(tracks[current].duration % 60);
+        
+        document.getElementById('time-display').innerText = 
+          (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs + 
+          ' / ' + 
+          (totalMins < 10 ? '0' : '') + totalMins + ':' + (totalSecs < 10 ? '0' : '') + totalSecs;
+        
+        // Завершение трека (с буфером 1 сек)
+        if (elapsed > tracks[current].duration + 1) {
+          clearInterval(updateInterval);
+        }
+      }, 200);
     }
 
-    // Показ/скрытие панели при движении мыши
-    var controls = document.getElementById('controls');
+    window.playStartTime = Date.now();
     
-    document.addEventListener('mousemove', function() {
-      controls.classList.add('visible');
-      clearTimeout(mouseTimeout);
-      mouseTimeout = setTimeout(function() {
-        controls.classList.remove('visible');
-      }, 3000); // Скрыть через 3 сек неподвижности
-    });
-
-    document.addEventListener('touchstart', function() {
-      controls.classList.add('visible');
-      clearTimeout(mouseTimeout);
-      mouseTimeout = setTimeout(function() {
-        controls.classList.remove('visible');
-      }, 3000);
-    });
-
     // Запуск
     playTrack(0);
   </script>
