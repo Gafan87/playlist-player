@@ -5,11 +5,12 @@
   <style>
     body { margin: 0; background: #000; }
     .player-wrapper { position: relative; width: 100%; height: 100vh; }
-    iframe { width: 100%; height: 100%; border: none; }
+    iframe { width: 100%; height: 100%; border: none; transition: opacity 0.3s ease; }
+    iframe.fade-out { opacity: 0; }
     .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); pointer-events: none; z-index: 10; }
     .info { position: fixed; top: 20px; left: 20px; background: rgba(0,0,0,0.95); color: #fff; padding: 15px 20px; border-radius: 8px; font-size: 14px; z-index: 100; font-family: Arial; }
     .time { color: #0f0; font-weight: bold; font-size: 18px; }
-    .loading { color: #f90; }
+    .status { color: #f90; font-size: 12px; margin-top: 5px; }
   </style>
 </head>
 <body>
@@ -21,17 +22,19 @@
   <div class="info">
     <div>🎵 Трек: <strong id="track-name">Загрузка...</strong></div>
     <div>⏱️ Осталось: <span class="time" id="countdown">00:00</span></div>
+    <div class="status" id="status"></div>
   </div>
 
   <script>
     var tracks = [
-      { id: 'S69w0zMW-A0', start: 0, duration: 85, name: 'Titanium Remix' },
+      { id: 'S69w0zMW-A0', start: 0, duration: 15, name: 'Titanium Remix' },
       { id: 'MvofQDdXSR4', start: 15, duration: 75, name: 'EDM Mix' }
     ];
     
     var current = 0;
     var endTime;
     var countdownInterval;
+    var fadeTransitionDuration = 3000; // 3 секунды для плавного перехода
 
     function loadTrack(idx) {
       clearInterval(countdownInterval);
@@ -39,13 +42,17 @@
       if (idx >= tracks.length) {
         document.getElementById('track-name').innerText = '✅ Плейлист завершён!';
         document.getElementById('countdown').innerText = '--:--';
+        document.getElementById('status').innerText = '';
         return;
       }
       
       current = idx;
       var track = tracks[idx];
       
-      // Используем стандартный embed (не nocookie) для надёжности
+      document.getElementById('status').innerText = 'Загрузка трека...';
+      document.getElementById('player').classList.remove('fade-out');
+      
+      // Используем стандартный embed
       var url = `https://www.youtube.com/embed/${track.id}?start=${track.start}&autoplay=1&controls=1&rel=0&modestbranding=1`;
       
       document.getElementById('player').src = url;
@@ -64,12 +71,19 @@
         document.getElementById('countdown').innerText = 
           (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
         
-        if (remaining <= 1) {
+        // Когда до конца осталось время перехода (3 сек) - начинаем fade out
+        if (remaining <= Math.ceil(fadeTransitionDuration / 1000) && remaining > 0) {
+          document.getElementById('status').innerText = '⏳ Переход...';
+          document.getElementById('player').classList.add('fade-out');
+        }
+        
+        // Когда таймер окончен - переключаемся
+        if (remaining <= 0) {
           clearInterval(countdownInterval);
-          // Переключение с задержкой для стабильности
+          // Задержка = длительность fade + время на загрузку нового видео
           setTimeout(function() {
             loadTrack(current + 1);
-          }, 800);
+          }, fadeTransitionDuration + 200);
         }
       }, 500);
     }
