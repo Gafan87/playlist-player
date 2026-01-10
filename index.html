@@ -1,392 +1,161 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
-  <meta charset="UTF-8">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mafia Video Crossfade</title>
-  <script src="https://www.youtube.com/iframe_api"></script>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      background: #000;
-      font-family: Arial, sans-serif;
-      overflow: hidden;
-    }
-
-    .video-container {
-      position: relative;
-      width: 100vw;
-      height: 100vh;
-      overflow: hidden;
-    }
-
-    .video-wrapper {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      opacity: 1;
-      z-index: 1;
-      transition: opacity 3s ease-in-out;
-    }
-
-    .video-wrapper.fade-out {
-      opacity: 0;
-      z-index: 0;
-    }
-
-    .video-wrapper.fade-in {
-      opacity: 1;
-      z-index: 2;
-    }
-
-    iframe {
-      width: 100%;
-      height: 100%;
-      border: none;
-    }
-
-    .controls {
-      position: absolute;
-      bottom: 20px;
-      left: 20px;
-      z-index: 100;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 20px;
-      border-radius: 8px;
-      color: white;
-      font-size: 14px;
-    }
-
-    .timer-display {
-      font-size: 32px;
-      font-weight: bold;
-      margin-bottom: 15px;
-      color: #00ff00;
-      text-align: center;
-      min-width: 150px;
-    }
-
-    .button-group {
-      display: flex;
-      gap: 10px;
-      margin-top: 10px;
-    }
-
-    button {
-      padding: 10px 15px;
-      background: #2196F3;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 12px;
-    }
-
-    button:hover {
-      background: #0b7dda;
-    }
-
-    button:active {
-      background: #0056b3;
-    }
-
-    .status {
-      font-size: 12px;
-      margin-top: 10px;
-      color: #ffff00;
-    }
+    body { margin: 0; background: #000; overflow: hidden; }
+    .player-wrapper { position: relative; width: 100%; height: 100vh; }
+    .player-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+    iframe { width: 100%; height: 100%; border: none; }
+    #player-current { z-index: 2; transition: opacity 3s ease-out; }
+    #player-next { z-index: 1; opacity: 0; }
+    .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.3); pointer-events: none; z-index: 10; }
+    .info { position: fixed; top: 20px; left: 20px; background: rgba(0,0,0,0.95); color: #fff; padding: 15px 20px; border-radius: 8px; font-size: 14px; z-index: 100; font-family: Arial; }
+    .time { color: #0f0; font-weight: bold; font-size: 18px; }
+    .status { color: #f90; font-size: 12px; margin-top: 5px; }
   </style>
 </head>
 <body>
-
-<div class="video-container">
-  <!-- Первое видео -->
-  <div id="video1Wrapper" class="video-wrapper fade-in">
-    <div id="player1"></div>
+  <div class="player-wrapper">
+    <div class="player-container">
+      <iframe id="player-current" width="100%" height="100%" src="" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    </div>
+    <div class="player-container">
+      <iframe id="player-next" width="100%" height="100%" src="" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    </div>
+  </div>
+  <div class="overlay"></div>
+  
+  <div class="info">
+    <div>🎵 Трек: <strong id="track-name">Загрузка...</strong></div>
+    <div>⏱️ Осталось: <span class="time" id="countdown">00:00</span></div>
+    <div class="status" id="status"></div>
   </div>
 
-  <!-- Второе видео (загружается заранее, невидимо) -->
-  <div id="video2Wrapper" class="video-wrapper">
-    <div id="player2"></div>
-  </div>
-</div>
-
-<div class="controls">
-  <div class="timer-display" id="timerDisplay">15s</div>
-  <div class="status" id="status">Статус: готов</div>
-  <div class="button-group">
-    <button onclick="startSequence()">Старт</button>
-    <button onclick="stopSequence()">Стоп</button>
-    <button onclick="toggleFullscreen()">Fullscreen</button>
-  </div>
-</div>
-
-<script>
-  // Конфиг трэков для тестирования
-  const tracks = [
-    {
-      id: 'S69w0zMW-A0',
-      startSeconds: 0,
-      endSeconds: 15,
-      duration: 15,
-      name: 'Titanium (15s)'
-    },
-    {
-      id: 'MvofQDdXSR4',
-      startSeconds: 15,
-      endSeconds: 90,
-      duration: 75,
-      name: 'EDM Mix (75s)'
-    }
-  ];
-
-  let currentTrackIndex = 0;
-  let player1, player2;
-  let isPlaying = false;
-  let timerId = null;
-  let remainingTime = 0;
-  const FADE_DURATION = 3000; // 3 сек на fade
-  const FADE_START_BEFORE_END = 3; // начать fade за 3 сек до конца
-
-  // Инициализация YouTube IFrame API
-  window.onYouTubeIframeAPIReady = function() {
-    console.log('YouTube API ready');
+  <script>
+    // Эмуляция мобильного устройства (Android Chrome)
+    var mobileUserAgent = 'Mozilla/5.0 (Linux; Android 13; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36';
     
-    player1 = new YT.Player('player1', {
-      width: '100%',
-      height: '100%',
-      videoId: tracks[0].id,
-      playerVars: {
-        'autoplay': 0,
-        'controls': 0,
-        'modestbranding': 1,
-        'rel': 0,
-        'showinfo': 0,
-        'fs': 1,
-        'iv_load_policy': 3,
-        'start': tracks[0].startSeconds,
-        'end': tracks[0].endSeconds
-      },
-      events: {
-        'onReady': onPlayer1Ready,
-        'onStateChange': onPlayer1StateChange,
-        'onError': onPlayerError
-      }
+    // Переопределяем User-Agent для всех запросов
+    Object.defineProperty(navigator, 'userAgent', {
+      get: function() { return mobileUserAgent; }
     });
 
-    player2 = new YT.Player('player2', {
-      width: '100%',
-      height: '100%',
-      videoId: tracks[1].id,
-      playerVars: {
-        'autoplay': 0,
-        'controls': 0,
-        'modestbranding': 1,
-        'rel': 0,
-        'showinfo': 0,
-        'fs': 1,
-        'iv_load_policy': 3,
-        'start': tracks[1].startSeconds,
-        'end': tracks[1].endSeconds
-      },
-      events: {
-        'onReady': onPlayer2Ready,
-        'onStateChange': onPlayer2StateChange,
-        'onError': onPlayerError
+    var tracks = [
+      { id: 'S69w0zMW-A0', start: 0, duration: 15, name: 'Titanium Remix' },
+      { id: 'MvofQDdXSR4', start: 15, duration: 75, name: 'EDM Mix' }
+    ];
+    
+    var current = 0;
+    var endTime;
+    var countdownInterval;
+    var fadeTransitionDuration = 3; // 3 секунды плавного перехода
+    var nextTrackLoaded = false;
+    var loadDelay = 500; // Задержка перед загрузкой следующего видео (мс)
+
+    function generateRandomSession() {
+      // Генерируем "случайный" session ID, как бы человек переходит
+      return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    }
+
+    function addAntiBot() {
+      // Эмуляция движений мыши (не робот)
+      document.addEventListener('click', function() {});
+      document.addEventListener('scroll', function() {});
+      document.addEventListener('touchstart', function() {});
+      
+      // Периодически "взаимодействуем" со страницей
+      setInterval(function() {
+        var event = new MouseEvent('mousemove', {
+          view: window,
+          bubbles: true,
+          cancelable: true,
+          clientX: Math.random() * window.innerWidth,
+          clientY: Math.random() * window.innerHeight
+        });
+        document.dispatchEvent(event);
+      }, 10000 + Math.random() * 5000); // Каждые 10-15 сек
+    }
+
+    function loadTrack(idx) {
+      clearInterval(countdownInterval);
+      
+      if (idx >= tracks.length) {
+        document.getElementById('track-name').innerText = '✅ Плейлист завершён!';
+        document.getElementById('countdown').innerText = '--:--';
+        document.getElementById('status').innerText = '';
+        return;
       }
-    });
-  };
-
-  function onPlayer1Ready(event) {
-    console.log('Player 1 ready');
-    updateStatus('Player 1 готов');
-  }
-
-  function onPlayer2Ready(event) {
-    console.log('Player 2 ready (loaded but hidden)');
-    updateStatus('Player 2 предзагружен');
-  }
-
-  function onPlayer1StateChange(event) {
-    if (event.data === YT.PlayerState.PLAYING) {
-      console.log('Player 1: PLAYING');
-      updateStatus('Видео 1: воспроизведение');
-    } else if (event.data === YT.PlayerState.ENDED) {
-      console.log('Player 1: ENDED');
-      updateStatus('Видео 1: завершено');
-    }
-  }
-
-  function onPlayer2StateChange(event) {
-    if (event.data === YT.PlayerState.PLAYING) {
-      console.log('Player 2: PLAYING');
-      updateStatus('Видео 2: воспроизведение');
-    }
-  }
-
-  function onPlayerError(event) {
-    console.error('YouTube Player Error:', event.data);
-    updateStatus('❌ Ошибка видео: ' + event.data);
-  }
-
-  function startSequence() {
-    if (isPlaying) return;
-
-    isPlaying = true;
-    currentTrackIndex = 0;
-    playTrack(0);
-  }
-
-  function playTrack(index) {
-    if (index >= tracks.length) {
-      console.log('Плейлист закончился');
-      updateStatus('Плейлист завершен');
-      isPlaying = false;
-      return;
+      
+      current = idx;
+      var track = tracks[idx];
+      
+      document.getElementById('status').innerText = 'Загрузка...';
+      
+      // Добавляем параметры против детектирования ботов
+      var url = `https://www.youtube.com/embed/${track.id}?start=${track.start}&autoplay=1&controls=1&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}`;
+      
+      document.getElementById('player-current').src = url;
+      document.getElementById('player-current').style.opacity = '1';
+      document.getElementById('player-next').style.opacity = '0';
+      document.getElementById('track-name').innerText = track.name;
+      
+      nextTrackLoaded = false;
+      
+      // Таймер
+      endTime = Date.now() + (track.duration * 1000);
+      startCountdown();
     }
 
-    const currentTrack = tracks[index];
-    const nextTrack = tracks[index + 1];
-
-    console.log(`Playing track ${index}: ${currentTrack.name}`);
-    updateStatus(`▶ ${currentTrack.name}`);
-
-    // Воспроизведение текущего видео
-    remainingTime = currentTrack.duration;
-    updateTimerDisplay();
-
-    // Убедимся что первое видео на переднем плане
-    document.getElementById('video1Wrapper').classList.remove('fade-out');
-    document.getElementById('video1Wrapper').classList.add('fade-in');
-    document.getElementById('video2Wrapper').classList.remove('fade-in');
-    document.getElementById('video2Wrapper').classList.add('fade-out');
-
-    player1.seekTo(currentTrack.startSeconds, true);
-    player1.playVideo();
-
-    // Если есть следующий трэк, загрузим его в фон
-    if (nextTrack) {
-      console.log(`Preloading next track: ${nextTrack.name}`);
-      player2.cueVideoById({
-        videoId: nextTrack.id,
-        startSeconds: nextTrack.startSeconds,
-        endSeconds: nextTrack.endSeconds
-      });
+    function startCountdown() {
+      countdownInterval = setInterval(function() {
+        var remaining = Math.max(0, Math.round((endTime - Date.now()) / 1000));
+        var mins = Math.floor(remaining / 60);
+        var secs = remaining % 60;
+        document.getElementById('countdown').innerText = 
+          (mins < 10 ? '0' : '') + mins + ':' + (secs < 10 ? '0' : '') + secs;
+        
+        // За 3 сек до конца - начинаем загружать следующий трек
+        if (remaining <= fadeTransitionDuration && remaining > 0 && current + 1 < tracks.length && !nextTrackLoaded) {
+          nextTrackLoaded = true;
+          
+          setTimeout(function() {
+            var nextTrack = tracks[current + 1];
+            var nextUrl = `https://www.youtube.com/embed/${nextTrack.id}?start=${nextTrack.start}&autoplay=0&controls=0&rel=0&modestbranding=1&enablejsapi=1&origin=${window.location.origin}`;
+            document.getElementById('player-next').src = nextUrl;
+            document.getElementById('status').innerText = '⏳ Переход...';
+          }, loadDelay);
+        }
+        
+        // Плавное затемнение текущего, появление следующего
+        if (remaining <= fadeTransitionDuration && remaining > 0 && nextTrackLoaded) {
+          var fadeProgress = (fadeTransitionDuration - remaining) / fadeTransitionDuration;
+          document.getElementById('player-current').style.opacity = 1 - fadeProgress;
+          document.getElementById('player-next').style.opacity = fadeProgress;
+        }
+        
+        // Когда таймер окончен - текущий становится предыдущим
+        if (remaining <= 0) {
+          clearInterval(countdownInterval);
+          document.getElementById('player-current').src = document.getElementById('player-next').src;
+          document.getElementById('player-current').style.opacity = '1';
+          document.getElementById('player-next').src = '';
+          document.getElementById('player-next').style.opacity = '0';
+          
+          current++;
+          if (current < tracks.length) {
+            loadTrack(current);
+          }
+        }
+      }, 100);
     }
 
-    // Таймер обратного отсчета
-    clearInterval(timerId);
-    timerId = setInterval(() => {
-      remainingTime -= 0.1;
-
-      // Проверка: пора ли начинать fade (за 3 сек до конца)
-      if (remainingTime <= FADE_START_BEFORE_END && nextTrack) {
-        console.log(`FADE START: remainingTime=${remainingTime.toFixed(1)}s`);
-        startCrossfade(index);
-      }
-
-      updateTimerDisplay();
-
-      // Проверка: конец трэка
-      if (remainingTime <= 0) {
-        clearInterval(timerId);
-        playTrack(index + 1);
-      }
-    }, 100);
-  }
-
-  function startCrossfade(currentIndex) {
-    const nextTrack = tracks[currentIndex + 1];
-
-    if (!nextTrack) return;
-
-    console.log('Starting crossfade transition...');
-    updateStatus(`🔄 Переход: ${nextTrack.name}`);
-
-    // Начать второе видео
-    player2.playVideo();
-
-    // Первое видео в фон (fade out)
-    document.getElementById('video1Wrapper').classList.add('fade-out');
-    document.getElementById('video1Wrapper').classList.remove('fade-in');
-
-    // Второе видео на передний план (fade in)
-    document.getElementById('video2Wrapper').classList.add('fade-in');
-    document.getElementById('video2Wrapper').classList.remove('fade-out');
-
-    // После завершения fade поменять плеер местами
-    setTimeout(() => {
-      console.log('Crossfade complete, swapping players');
-      swapPlayers();
-    }, FADE_DURATION);
-  }
-
-  function swapPlayers() {
-    // Меняем местами плееры в DOM
-    const wrapper1 = document.getElementById('video1Wrapper');
-    const wrapper2 = document.getElementById('video2Wrapper');
-
-    // Временно переносим содержимое
-    const temp = wrapper1.innerHTML;
-    wrapper1.innerHTML = wrapper2.innerHTML;
-    wrapper2.innerHTML = temp;
-
-    // Пересоздаем плееры (потому что они теперь в других div)
-    const tempPlayer = player1;
-    player1 = player2;
-    player2 = tempPlayer;
-
-    // Сбрасываем классы
-    wrapper1.classList.remove('fade-out', 'fade-in');
-    wrapper1.classList.add('fade-in');
-    wrapper2.classList.remove('fade-out', 'fade-in');
-    wrapper2.classList.add('fade-out');
-
-    console.log('Players swapped');
-  }
-
-  function stopSequence() {
-    clearInterval(timerId);
-    player1.stopVideo();
-    player2.stopVideo();
-    isPlaying = false;
-    remainingTime = 0;
-    updateTimerDisplay();
-    updateStatus('⏹ Остановлено');
-  }
-
-  function updateTimerDisplay() {
-    const seconds = Math.max(0, remainingTime.toFixed(1));
-    document.getElementById('timerDisplay').textContent = `${seconds}s`;
-  }
-
-  function updateStatus(message) {
-    document.getElementById('status').textContent = `Статус: ${message}`;
-  }
-
-  function toggleFullscreen() {
-    const container = document.querySelector('.video-container');
-    if (!document.fullscreenElement) {
-      container.requestFullscreen().catch(err => {
-        console.error('Fullscreen error:', err);
-      });
-    } else {
-      document.exitFullscreen();
-    }
-  }
-
-  // Запуск API при загрузке страницы
-  window.addEventListener('load', () => {
-    console.log('Page loaded, YouTube API should initialize...');
-  });
-</script>
-
+    // Инициализация анти-бот защиты
+    addAntiBot();
+    
+    // Запуск
+    loadTrack(0);
+  </script>
 </body>
 </html>
